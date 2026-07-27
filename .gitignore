@@ -1,0 +1,18 @@
+# Wirtualne środowiska Pythona
+venv/
+venv_build/
+env/
+.env/
+
+# Folder build i dist generowane przez PyInstaller
+build/
+dist/
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Pliki tymczasowe i systemowe
+*.log
+.DS_Store
+Thumbs.db
