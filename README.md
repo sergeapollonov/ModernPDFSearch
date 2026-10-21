@@ -9,15 +9,18 @@ Nowoczesna, błyskawiczna aplikacja biurkowa z interfejsem graficznym (GUI) do p
 - **Błyskawiczne skanowanie:** Przeszukiwanie całych katalogów (wraz z podkatalogami) pod kątem plików `.pdf` dzięki ultrawydajnej bibliotece `PyMuPDF` (`fitz`).
 - **Precyzyjne wyniki:** Wyświetlanie nazw plików, dokładnego numeru strony z odnalezioną frazą oraz pełnej ścieżki na dysku.
 - **Akcje na wynikach:**
-  - `[ ŚCIEŻKA ]` – natychmiastowe skopiowanie pełnej ścieżki pliku do schowka.
+  - **Kliknięcie na nazwę pliku** – natychmiastowe skopiowanie samej nazwy pliku do schowka z wizualnym potwierdzeniem.
+  - `[ ŚCIEŻKA ]` – skopiowanie pełnej ścieżki pliku do schowka ze stanem `[ SKOPIOWANO ]` na przycisku.
   - `[ FOLDER ]` – otwarcie Eksploratora Windows z automatycznie zaznaczonym plikiem docelowym.
   - `[ OTWÓRZ ]` – otwarcie pliku PDF bezpośrednio w domyślnym systemowym czytniku.
 - **Asynchroniczna praca w tle:** Skanowanie odbywa się w osobnym wątku (`threading.Thread`), nie blokując interfejsu. Możliwość natychmiastowego przerwania skanowania w dowolnym momencie (`[ PRZERWIJ ]`).
 - **Dopracowany UX/UI:**
-  - Tło z dynamiczną siatką kropek (Dot Grid), skalujące się płynnie przy zmianie rozmiaru okna (dzięki technice *debouncingu*).
-  - Animowany pasek postępu ze stylizowanymi czerwonymi kropkami.
-  - Licznik wyników na żywo oraz automatyczne raportowanie uszkodzonych/niedostępnych plików PDF w statusie (`BŁĘDY: X`).
-  - Podświetlanie kart wyników po najechaniu myszą (hover effect).
+  - Tło i panele z dynamiczną siatką kropek (Nothing Dot Grid) na 1. planie interfejsu.
+  - Animowana fala świetlna LED (*Marquee LED Wave*) w stylu Glyph.
+  - Pływający system powiadomień (*Toast Notifications*) z automatycznym wygaszaniem.
+  - Licznik postępu na żywo (`PRZESZUKANO: X // TRAFIENIA: Y`) oraz raportowanie błędów w statusie.
+  - Podświetlanie kart wyników po najechaniu myszą (*flicker-free hover*).
+  - Skróty klawiszowe (`Ctrl+F` wyszukiwarka, `Ctrl+O` wybór folderu, `Escape` przerwij/czyść).
 
 ---
 
@@ -27,13 +30,13 @@ Aby uruchomić aplikację w środowisku programistycznym na dowolnym stanowisku:
 
 ### 1. Wymagania systemowe
 - System operacyjny: Windows 10 / 11 (zalecany ze względu na integrację z Eksploratorem Windows; aplikacja posiada też obsługę macOS/Linux).
-- **Python 3.10+** (zalecany Python 3.14 / 3.12).
+- **Python 3.10+** (zalecany Python 3.12 / 3.14).
 
 ### 2. Szybki start
 
 Sklonuj repozytorium na swój dysk:
 ```bash
-git clone <URL_TEGO_REPOZYTORIUM>
+git clone https://github.com/sergeapollonov/ModernPDFSearch.git
 cd ModernPDFSearch
 ```
 
