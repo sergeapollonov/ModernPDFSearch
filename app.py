@@ -34,7 +34,7 @@ ctk.set_appearance_mode("dark")
 COLOR_BG = "#0a0a0a"             # Głęboka czerń tła
 COLOR_PANEL = "#121212"          # Panele boczne i karty
 COLOR_SURFACE_INPUT = "#181818"  # Wnętrza pól tekstowych
-COLOR_DOT_GRID = "#1e1e1e"       # Dyskretna matryca tła
+COLOR_DOT_GRID = "#3a3a3a"       # Wyraźna, estetyczna matryca Nothing OS (widoczna na #0a0a0a)
 COLOR_BORDER = "#222222"         # Ramki spoczynkowe
 COLOR_BORDER_HOVER = "#444444"   # Ramki aktywne / hover
 COLOR_BORDER_BTN = "#2a2a2a"     # Obramowanie przycisków drugorzędnych
@@ -147,6 +147,7 @@ class ModernPDFSearch(ctk.CTk):
         self.found_count = 0
         self._skipped_count = 0
         self._limit_reached = False
+        self._current_scanned = 0
 
         # Kolejka kaskadowa (Staggered Reveal Queue)
         self._result_queue = []
@@ -283,6 +284,9 @@ class ModernPDFSearch(ctk.CTk):
         # Pusty stan początkowy (Onboarding Standby)
         self.show_standby_state()
 
+        # Inicjalne narysowanie siatki Nothing Dot Grid po zmapowaniu geometrii
+        self.after(60, self._redraw_dots)
+
     # --- SKRÓTY I INTERAKCJA ---
     def focus_search(self):
         self.search_entry.focus_set()
@@ -297,19 +301,26 @@ class ModernPDFSearch(ctk.CTk):
 
     # --- ARCHITEKTONICZNY DOT GRID ---
     def draw_dot_grid(self, event=None):
+        if event is not None and event.widget != self:
+            return
         if self._dot_resize_timer is not None:
             self.after_cancel(self._dot_resize_timer)
-        self._dot_resize_timer = self.after(120, self._redraw_dots)
+        self._dot_resize_timer = self.after(80, self._redraw_dots)
 
     def _redraw_dots(self):
         self._dot_resize_timer = None
-        self.bg_canvas.delete("all")
         w = self.winfo_width()
         h = self.winfo_height()
-        spacing = 36 if max(w, h) > 2000 else 28
+        if w <= 100 or h <= 100:
+            self.after(50, self._redraw_dots)
+            return
+
+        self.bg_canvas.delete("all")
+        spacing = 54
         for x in range(0, w, spacing):
             for y in range(0, h, spacing):
                 self.bg_canvas.create_rectangle(x, y, x + 2, y + 2, fill=COLOR_DOT_GRID, outline="")
+        self.bg_canvas.lower()
 
     # --- STAN POCZĄTKOWY I PUSTY ---
     def show_standby_state(self):
@@ -409,13 +420,17 @@ class ModernPDFSearch(ctk.CTk):
         self._cancel_event.clear()
         self.found_count = 0
         self._skipped_count = 0
+        self._current_scanned = 0
         self._limit_reached = False
         self._result_queue.clear()
         self._is_draining = False
 
         self.clear_results()
         self.results_title.configure(text="// WYNIKI [ 0 ]")
-        self.status_label.configure(text="SYS.SCANNING...", text_color=COLOR_TEXT_MUTED)
+        self.status_label.configure(
+            text="SYS.SCANNING...\nPRZESZUKANO: 0 // TRAFIENIA: 0",
+            text_color=COLOR_TEXT_PRIMARY
+        )
 
         self.action_btn.configure(
             text="[ PRZERWIJ ]",
@@ -667,10 +682,7 @@ class ModernPDFSearch(ctk.CTk):
         open_btn.grid(row=0, column=3, padx=(0, 15), pady=12, sticky="e")
 
         # Aktualizacja statusu
-        suffix = f" // BŁĘDY: {self._skipped_count}" if self._skipped_count > 0 else ""
-        self.status_label.configure(
-            text=f"SYS.SCANNING... // ZNALEZIONO: {self.found_count}{suffix}"
-        )
+        self._update_scan_progress(self._current_scanned, self.found_count)
 
     # --- FLICKER-FREE HOVER KARTY ---
     def setup_card_hover(self, card):
@@ -761,13 +773,18 @@ class ModernPDFSearch(ctk.CTk):
         except Exception as e:
             self.toast.show("BŁĄD OTWARCIA FOLDERU", str(e), kind="error")
 
+    def _update_scan_progress(self, scanned_count, found_count):
+        if self._cancel_event.is_set():
+            return
+        suffix = f" // BŁĘDY: {self._skipped_count}" if self._skipped_count > 0 else ""
+        self.status_label.configure(
+            text=f"SYS.SCANNING...\nPRZESZUKANO: {scanned_count} // TRAFIENIA: {found_count}{suffix}",
+            text_color=COLOR_TEXT_PRIMARY
+        )
+
     def _report_skipped(self, filepath, reason=""):
         self._skipped_count += 1
-        suffix = f" // BŁĘDY: {self._skipped_count}"
-        found_part = f" // ZNALEZIONO: {self.found_count}" if self.found_count > 0 else ""
-        self.status_label.configure(
-            text=f"SYS.SCANNING...{found_part}{suffix}"
-        )
+        self._update_scan_progress(self._current_scanned, self.found_count)
 
     def _report_limit_reached(self):
         self._limit_reached = True
@@ -785,6 +802,7 @@ class ModernPDFSearch(ctk.CTk):
         scanned_count = 0
         found_count = 0
         query_folded = query.casefold()
+        last_ui_update = 0
 
         def walk_error_handler(err):
             self.after(0, self._report_skipped, getattr(err, 'filename', 'FOLDER'), str(err))
@@ -800,6 +818,12 @@ class ModernPDFSearch(ctk.CTk):
 
                     if file.lower().endswith(".pdf"):
                         scanned_count += 1
+                        self._current_scanned = scanned_count
+                        now = time.time()
+                        if now - last_ui_update > 0.08:
+                            last_ui_update = now
+                            self.after(0, self._update_scan_progress, scanned_count, found_count)
+
                         filepath = os.path.join(root, file)
                         doc = None
 
@@ -857,7 +881,7 @@ class ModernPDFSearch(ctk.CTk):
         prefix = "SYS.ABORTED" if cancelled else "SYS.DONE"
         skipped_part = f" // BŁĘDY: {self._skipped_count}" if self._skipped_count > 0 else ""
         limit_part = " // [LIMIT]" if self._limit_reached else ""
-        status_text = f"{prefix} // SKAN: {scanned_count} // TRAFIENIA: {found_count}{skipped_part}{limit_part}"
+        status_text = f"{prefix}\nPRZESZUKANO: {scanned_count} // TRAFIENIA: {found_count}{skipped_part}{limit_part}"
 
         if found_count == 0 and not cancelled:
             self.status_label.configure(text=status_text, text_color=COLOR_TEXT_MUTED)
