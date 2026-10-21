@@ -34,7 +34,7 @@ ctk.set_appearance_mode("dark")
 COLOR_BG = "#0a0a0a"             # Głęboka czerń tła
 COLOR_PANEL = "#121212"          # Panele boczne i karty
 COLOR_SURFACE_INPUT = "#181818"  # Wnętrza pól tekstowych
-COLOR_DOT_GRID = "#3a3a3a"       # Wyraźna, estetyczna matryca Nothing OS (widoczna na #0a0a0a)
+COLOR_DOT_GRID = "#3e3e3e"       # Wyraźna matryca Nothing OS na 1. planie paneli i kart
 COLOR_BORDER = "#222222"         # Ramki spoczynkowe
 COLOR_BORDER_HOVER = "#444444"   # Ramki aktywne / hover
 COLOR_BORDER_BTN = "#2a2a2a"     # Obramowanie przycisków drugorzędnych
@@ -299,7 +299,31 @@ class ModernPDFSearch(ctk.CTk):
         else:
             self.search_entry.delete(0, 'end')
 
-    # --- ARCHITEKTONICZNY DOT GRID ---
+    # --- ARCHITEKTONICZNY DOT GRID (1. PLAN - NOTHING OS STYLE) ---
+    def draw_aligned_dots(self, target_canvas, spacing=54, color=None, tag="grid_dot"):
+        """Rysuje kropki zsynchronizowane z globalną siatką okna (1. plan na panelach i kartach)."""
+        if color is None:
+            color = COLOR_DOT_GRID
+        try:
+            target_canvas.delete(tag)
+            tw = target_canvas.winfo_width()
+            th = target_canvas.winfo_height()
+            if tw <= 10 or th <= 10:
+                return
+            rx = target_canvas.winfo_rootx() - self.winfo_rootx()
+            ry = target_canvas.winfo_rooty() - self.winfo_rooty()
+        except Exception:
+            rx, ry = 0, 0
+            tw = target_canvas.winfo_width()
+            th = target_canvas.winfo_height()
+
+        first_x = (spacing - (rx % spacing)) % spacing
+        first_y = (spacing - (ry % spacing)) % spacing
+
+        for x in range(first_x, tw, spacing):
+            for y in range(first_y, th, spacing):
+                target_canvas.create_rectangle(x, y, x + 2, y + 2, fill=color, outline="", tags=tag)
+
     def draw_dot_grid(self, event=None):
         if event is not None and event.widget != self:
             return
@@ -315,12 +339,25 @@ class ModernPDFSearch(ctk.CTk):
             self.after(50, self._redraw_dots)
             return
 
-        self.bg_canvas.delete("all")
         spacing = 54
-        for x in range(0, w, spacing):
-            for y in range(0, h, spacing):
-                self.bg_canvas.create_rectangle(x, y, x + 2, y + 2, fill=COLOR_DOT_GRID, outline="")
-        self.bg_canvas.lower()
+        color = COLOR_DOT_GRID
+
+        # 1. Płótno tła okna
+        self.draw_aligned_dots(self.bg_canvas, spacing, color)
+
+        # 2. Lewy panel kontrolny (kropki na 1. planie panelu)
+        if hasattr(self, 'left_panel') and hasattr(self.left_panel, '_canvas'):
+            self.draw_aligned_dots(self.left_panel._canvas, spacing, color)
+
+        # 3. Prawy obszar wyników (kropki na 1. planie przewijanej listy)
+        if hasattr(self, 'results_frame') and hasattr(self.results_frame, '_parent_canvas'):
+            self.draw_aligned_dots(self.results_frame._parent_canvas, spacing, color)
+
+        # 4. Wszystkie karty wyników (kropki na 1. planie każdej karty)
+        if hasattr(self, 'results_frame'):
+            for card in self.results_frame.winfo_children():
+                if hasattr(card, '_canvas'):
+                    self.draw_aligned_dots(card._canvas, spacing, color)
 
     # --- STAN POCZĄTKOWY I PUSTY ---
     def show_standby_state(self):
@@ -560,6 +597,9 @@ class ModernPDFSearch(ctk.CTk):
 
         # Odporny na migotanie hover
         self.setup_card_hover(card)
+
+        # Rysowanie kropek Nothing OS na 1. planie karty
+        self.after(15, lambda c=card: self.draw_aligned_dots(c._canvas) if c.winfo_exists() and hasattr(c, '_canvas') else None)
 
         info_frame = ctk.CTkFrame(card, fg_color="transparent")
         info_frame.grid(row=0, column=0, padx=15, pady=12, sticky="ew")
