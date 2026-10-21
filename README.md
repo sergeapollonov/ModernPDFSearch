@@ -18,6 +18,10 @@
 
 *Zero chmury. Zero indeksowania w tle. Natychmiastowe wyniki na tysiącach plików PDF.*
 
+<br>
+
+![ModernPDFSearch — Nothing OS UI Preview](assets/preview.png)
+
 </div>
 
 ---
